@@ -16,6 +16,7 @@
 
 package com.nvidia.spark.rapids.jni;
 
+
 import com.nvidia.spark.rapids.jni.BloomFilter;
 
 import ai.rapids.cudf.AssertUtils;

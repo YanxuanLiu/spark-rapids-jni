@@ -23,7 +23,6 @@ set -ex
 
 WORKSPACE=${WORKSPACE:-$PWD}
 M2DIR=${M2DIR:-"$HOME/.m2"}
-
 SLF4J_VER=$(mvn help:evaluate -Dexpression=slf4j.version -q -DforceStdout)
 CLASSPATH=${CLASSPATH:-"$WORKSPACE/target/*:$M2DIR/repository/org/slf4j/slf4j-api/$SLF4J_VER/slf4j-api-$SLF4J_VER.jar"}
 

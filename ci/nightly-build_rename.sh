@@ -19,6 +19,10 @@ set -ex
 
 nvidia-smi
 
+
+
+
+
 git submodule update --init --recursive
 
 MVN="mvn -Dmaven.wagon.http.retryHandler.count=3 -B"
