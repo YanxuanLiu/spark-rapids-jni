@@ -27,6 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 5
+          
 
       - name: license-header-check
         uses: NVIDIA/spark-rapids-common/license-header-check@main
