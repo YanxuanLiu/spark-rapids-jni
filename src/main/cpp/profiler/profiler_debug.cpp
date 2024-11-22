@@ -129,6 +129,8 @@ std::string activity_kind_to_string(CUpti_ActivityKind kind)
   }
 }
 
+
+
 void print_cupti_buffer(uint8_t* buffer, size_t valid_size)
 {
   if (valid_size > 0) {
