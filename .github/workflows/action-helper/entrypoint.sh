@@ -17,6 +17,8 @@
 
 set -e
 
+
+
 if [[ $# -ne 1 ]]; then
     echo "ERROR: invalid number of parameters, should be exact one"
     exit 1
