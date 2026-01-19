@@ -76,7 +76,7 @@ std::unique_ptr<cudf::column> make_empty_map(rmm::cuda_stream_view stream,
 std::tuple<rmm::device_buffer, char, std::unique_ptr<cudf::column>> unify_json_strings(
   cudf::strings_column_view const& input, rmm::cuda_stream_view stream)
 {
-  auto const default_mr = cudf::get_current_device_resource();
+  auto const default_mr = cudf::get_current_device_resource_ref();
   auto [concatenated_buff, delimiter, should_be_nullified] =
     concat_json(input, /*nullify_invalid_rows*/ true, stream, default_mr);
 
@@ -562,7 +562,7 @@ std::unique_ptr<cudf::column> compute_list_offsets(
 #endif
 
   auto list_offsets   = rmm::device_uvector<cudf::size_type>(n_lists + 1, stream, mr);
-  auto const copy_end = cudf::detail::copy_if_safe(
+  auto const copy_end = cudf::detail::copy_if(
     node_child_counts.begin(),
     node_child_counts.end(),
     list_offsets.begin(),
@@ -636,11 +636,11 @@ std::pair<rmm::device_buffer, cudf::size_type> create_null_mask(
 
   auto const node_id_it = thrust::counting_iterator<NodeIndexT>(0);
   auto const invalid_copy_end =
-    cudf::detail::copy_if_safe(node_id_it,
-                               node_id_it + node_token_ids.size(),
-                               invalid_indices.begin(),
-                               is_invalid_struct_begin{tokens, node_token_ids, token_positions},
-                               stream);
+    cudf::detail::copy_if(node_id_it,
+                          node_id_it + node_token_ids.size(),
+                          invalid_indices.begin(),
+                          is_invalid_struct_begin{tokens, node_token_ids, token_positions},
+                          stream);
   auto const num_invalid = cuda::std::distance(invalid_indices.begin(), invalid_copy_end);
 #ifdef DEBUG_FROM_JSON
   print_debug(invalid_indices,
@@ -656,11 +656,11 @@ std::pair<rmm::device_buffer, cudf::size_type> create_null_mask(
     // We must have such list having size equal to the number of original input JSON strings.
     rmm::device_uvector<NodeIndexT> line_begin_indices(num_nodes, stream);
     auto const line_begin_copy_end =
-      cudf::detail::copy_if_safe(node_id_it,
-                                 node_id_it + node_token_ids.size(),
-                                 line_begin_indices.begin(),
-                                 is_line_begin{tokens, node_token_ids, parent_node_ids},
-                                 stream);
+      cudf::detail::copy_if(node_id_it,
+                            node_id_it + node_token_ids.size(),
+                            line_begin_indices.begin(),
+                            is_line_begin{tokens, node_token_ids, parent_node_ids},
+                            stream);
     auto const num_line_begin =
       cuda::std::distance(line_begin_indices.begin(), line_begin_copy_end);
     CUDF_EXPECTS(num_line_begin == num_rows, "Incorrect count of JSON objects.");
@@ -689,7 +689,7 @@ std::pair<rmm::device_buffer, cudf::size_type> create_null_mask(
 
   auto const valid_it          = should_be_nullified->view().begin<bool>();
   auto [null_mask, null_count] = cudf::detail::valid_if(
-    valid_it, valid_it + should_be_nullified->size(), thrust::logical_not{}, stream, mr);
+    valid_it, valid_it + should_be_nullified->size(), thrust::logical_not<bool>{}, stream, mr);
   return {null_count > 0 ? std::move(null_mask) : rmm::device_buffer{0, stream, mr}, null_count};
 }
 
@@ -737,7 +737,7 @@ std::unique_ptr<cudf::column> from_json_to_raw_map(cudf::strings_column_view con
       .unquoted_control_chars(allow_unquoted_control)
       .build(),
     stream,
-    cudf::get_current_device_resource());
+    cudf::get_current_device_resource_ref());
 
 #ifdef DEBUG_FROM_JSON
   print_debug(tokens, "Tokens", ", ", stream);

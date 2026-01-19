@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# Copyright (c) 2022-2026, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -44,7 +44,7 @@ rapids_cuda_init_architectures(SPARK_RAPIDS_JNI)
 
 project(
   SPARK_RAPIDS_JNI
-  VERSION 25.12.00
+  VERSION 26.04.00
   LANGUAGES CXX CUDA
 )
 
@@ -185,6 +185,7 @@ set(CUDFJNI_INCLUDE_DIRS
 
 add_library(
   spark_rapids_jni SHARED
+  # Files starting with uppercase
   src/Aggregation64Utils.cpp
   src/ArithmeticJni.cpp
   src/BloomFilterJni.cpp
@@ -194,19 +195,17 @@ add_library(
   src/DecimalUtilsJni.cpp
   src/DeviceAttrJni.cpp
   src/GpuTimeZoneDBJni.cpp
-  src/HashJni.cpp
   src/HistogramJni.cpp
   src/HostTableJni.cpp
   src/HyperLogLogPlusPlusHostUDFJni.cpp
   src/JSONUtilsJni.cpp
   src/KudoGpuSerializerJni.cpp
   src/ListSliceJni.cpp
-  src/MapZipWithUtilsJNI.cpp
-  src/map_zip_with_utils.cu
   src/MapJni.cpp
+  src/MapZipWithUtilsJNI.cpp
+  src/JoinPrimitivesJni.cpp
   src/NativeParquetJni.cpp
   src/NumberConverterJni.cpp
-  src/NVMLJni.cpp
   src/ParseURIJni.cpp
   src/RegexRewriteUtilsJni.cpp
   src/RowConversionJni.cpp
@@ -215,6 +214,10 @@ add_library(
   src/SubStringIndexJni.cpp
   src/TaskPriorityJni.cpp
   src/ZOrderJni.cpp
+  src/iceberg/IcebergBucketJni.cpp
+  src/iceberg/IcebergDateTimeUtilJni.cpp
+  src/iceberg/IcebergTruncateJni.cpp
+  # Files starting with lowercase
   src/aggregation64_utils.cu
   src/bloom_filter.cu
   src/case_when.cu
@@ -222,8 +225,8 @@ add_library(
   src/cast_float_to_string.cu
   src/cast_long_to_binary_string.cu
   src/cast_string.cu
-  src/cast_string_to_float.cu
   src/cast_string_to_datetime.cu
+  src/cast_string_to_float.cu
   src/datetime_rebase.cu
   src/datetime_truncate.cu
   src/decimal_utils.cu
@@ -232,15 +235,23 @@ add_library(
   src/from_json_to_raw_map.cu
   src/from_json_to_structs.cu
   src/get_json_object.cu
+  src/hash/HashJni.cpp
+  src/hash/hive_hash.cu
+  src/hash/murmur_hash.cu
+  src/hash/sha.cpp
+  src/hash/xxhash64.cu
   src/histogram.cu
-  src/hive_hash.cu
   src/hyper_log_log_plus_plus.cu
   src/hyper_log_log_plus_plus_host_udf.cu
+  src/iceberg/iceberg_bucket.cu
+  src/iceberg/iceberg_datetime_util.cu
+  src/iceberg/iceberg_truncate.cu
   src/json_utils.cu
+  src/join_primitives.cu
   src/list_slice.cu
   src/map.cu
+  src/map_zip_with_utils.cu
   src/multiply.cu
-  src/murmur_hash.cu
   src/number_converter.cu
   src/parse_uri.cu
   src/regex_rewrite_utils.cu
@@ -252,7 +263,6 @@ add_library(
   src/timezones.cu
   src/utilities.cu
   src/uuid.cu
-  src/xxhash64.cu
   src/zorder.cu
 )
 
@@ -308,7 +318,6 @@ target_link_libraries(
     ${ARROW_LIB}
     ${PARQUET_LIB}
     ${THRIFT_LIB}
-    nvidia-ml
 )
 rapids_cuda_set_runtime(spark_rapids_jni USE_STATIC ON)
 set_target_properties(spark_rapids_jni PROPERTIES LINK_LANGUAGE "CXX")
@@ -322,6 +331,30 @@ add_library(cudfjnistub SHARED src/emptyfile.cpp)
 set_target_properties(cudfjnistub PROPERTIES OUTPUT_NAME "cudfjni")
 target_link_libraries(cudfjnistub -Wl,--no-as-needed $<TARGET_FILE:spark_rapids_jni> -Wl,--as-needed)
 add_dependencies(cudfjnistub spark_rapids_jni)
+
+# ##################################################################################################
+# * NVML JNI ---------------------------------------------------------------------------------------
+
+add_library(nvmljni SHARED src/NVMLJni.cpp)
+set_target_properties(
+  nvmljni
+  PROPERTIES BUILD_RPATH "\$ORIGIN"
+             INSTALL_RPATH "\$ORIGIN"
+             # set target compile options
+             CXX_STANDARD 20
+             CXX_STANDARD_REQUIRED ON
+             CXX_EXTENSIONS ON
+             POSITION_INDEPENDENT_CODE ON
+             INTERFACE_POSITION_INDEPENDENT_CODE ON
+)
+
+target_include_directories(
+  nvmljni
+  PRIVATE "${JNI_INCLUDE_DIRS}"
+          "${CUDAToolkit_INCLUDE_DIRS}"
+)
+
+target_link_libraries(nvmljni nvidia-ml)
 
 # ##################################################################################################
 # * cuFile JNI -------------------------------------------------------------------------------------

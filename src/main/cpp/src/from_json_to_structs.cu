@@ -41,6 +41,7 @@
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/pair.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
@@ -811,7 +812,7 @@ std::unique_ptr<cudf::column> from_json_to_structs(cudf::strings_column_view con
                                                    rmm::device_async_resource_ref mr)
 {
   auto const [concat_input, delimiter, should_be_nullified] =
-    concat_json(input, false, stream, cudf::get_current_device_resource());
+    concat_json(input, false, stream, cudf::get_current_device_resource_ref());
   auto const [schema, schema_with_precision] =
     generate_struct_schema(col_names, num_children, types, scales, precisions);
 
@@ -863,7 +864,7 @@ std::unique_ptr<cudf::column> from_json_to_structs(cudf::strings_column_view con
 
   auto const valid_it          = should_be_nullified->view().begin<bool>();
   auto [null_mask, null_count] = cudf::detail::valid_if(
-    valid_it, valid_it + should_be_nullified->size(), thrust::logical_not{}, stream, mr);
+    valid_it, valid_it + should_be_nullified->size(), thrust::logical_not<bool>{}, stream, mr);
 
   // Do not use `cudf::make_structs_column` since we do not need to call `superimpose_nulls`
   // on the children columns.
