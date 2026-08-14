@@ -21,13 +21,20 @@ on:
   pull_request_target:
     types:
       - opened
+      - closed
+
+permissions:
+  contents: read
 
 jobs:
   Add-to-project:
-    if: github.repository_owner == 'NVIDIA' # avoid adding issues from forks
+    if: >-
+      github.repository_owner == 'YanxuanLiu' &&
+      (github.event.action == 'opened' || github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     steps:
       - name: add-to-project
-        uses: NVIDIA/spark-rapids-common/add-to-project@main
+        uses: YanxuanLiu/spark-rapids-common/add-to-project@dc81d58b0ea83815a3a765c519bf848f0a9bcedf
         with:
-          token: ${{ secrets.PROJECT_TOKEN }}
+          token: ${{ secrets.PROJECT_TEST_TOKEN }}
+          project-url: https://github.com/users/YanxuanLiu/projects/1
