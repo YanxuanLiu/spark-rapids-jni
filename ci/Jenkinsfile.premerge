@@ -282,7 +282,39 @@ git --no-pager diff --name-only HEAD \$BASE -- ${PREMERGE_DOCKERFILE} || true"""
                 stage ('sonarqube') {
                     steps {
                         script {
-                            def prNumber = githubHelper.getIssue().number
+                            def prNumber = githubHelper.getIssue().number.toString()
+                            if (!(prNumber ==~ /[1-9][0-9]*/)) {
+                                error 'SonarQube analysis requires a valid PR number'
+                            }
+
+                            def pullRequest
+                            def headSha
+                            container('cpu') {
+                                // source_tree contains the merge tested by this build;
+                                // its second parent is the corresponding PR source head.
+                                headSha = sh(returnStdout: true,
+                                    script: 'git rev-parse HEAD^2').trim()
+                                withEnv(["SONAR_PR_API_URL=https://api.github.com/repos/NVIDIA/cudf-spark-jni/pulls/${prNumber}"]) {
+                                    pullRequest = readJSON(returnPojo: true, text: sh(
+                                        returnStdout: true,
+                                        script: '''#!/bin/bash
+set -euo pipefail
+curl --fail --silent --show-error --no-netrc \\
+  --connect-timeout 10 --max-time 30 \\
+  --header "Authorization: Bearer ${GITHUB_TOKEN}" \\
+  --header 'Accept: application/vnd.github+json' \\
+  "${SONAR_PR_API_URL}"
+''').trim())
+                                }
+                            }
+                            if (pullRequest.head?.sha != headSha) {
+                                error 'PR head changed after this build started; rerun CI for the current head'
+                            }
+                            def sourceBranch = pullRequest.head?.ref?.toString()
+                            def targetBranch = pullRequest.base?.ref?.toString()
+                            if (!sourceBranch || !targetBranch) {
+                                error 'GitHub did not return the PR source and target branches'
+                            }
 
                             def sonarBuild = build(
                                 job: 'sonar-scan',
@@ -290,11 +322,10 @@ git --no-pager diff --name-only HEAD \$BASE -- ${PREMERGE_DOCKERFILE} || true"""
                                 propagate: false,
                                 parameters: [
                                     string(name: 'REPO_URL', value: githubHelper.getCloneUrl()),
-                                    string(name: 'REF', value: githubHelper.getMergedSHA()),
-                                    string(name: 'BRANCH_NAME', value: "PR-${prNumber}"),
-                                    string(name: 'REFSPEC', value:
-                                        "+refs/pull/${prNumber}/merge:" +
-                                        "refs/remotes/origin/pr/${prNumber}"),
+                                    string(name: 'REF', value: headSha),
+                                    string(name: 'PR_KEY', value: prNumber),
+                                    string(name: 'PR_BRANCH', value: sourceBranch),
+                                    string(name: 'PR_BASE', value: targetBranch),
                                     booleanParam(name: 'CHECK_QUALITY_GATE', value: true),
                                     booleanParam(name: 'MUTE_SLACK', value: true),
                                 ])
